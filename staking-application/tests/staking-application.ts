@@ -8,7 +8,7 @@ describe("staking-application", () => {
 
   const program = anchor.workspace.stakingApplication as Program<StakingApplication>;
   let stakeAccount,owner;
-  before(()=>{
+  before(() => {
     // Create a new stake account  and owner keypair
     stakeAccount = anchor.web3.Keypair.generate();
     owner = anchor.web3.Keypair.generate();
@@ -46,7 +46,37 @@ describe("staking-application", () => {
       })
       .signers([owner, stakeAccount])
       .rpc();
-
+     
       console.log("Initialize stake account transaction signature:", tx);
+  });
+
+  it("TEST - 2: Can Delegate the Stake Account", async () => {
+    const validators = await program.provider.connection.getVoteAccounts();
+    const validatorVoteAccount = validators.current[0].votePubkey;
+    console.log("Validator Vote Account:", validatorVoteAccount);
+
+    // Derive the stake authority PDA
+    const [stakeAuthority, _] = anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("stake_authority")],
+      program.programId
+    );
+    console.log("Stake Authority PDA:", stakeAuthority.toString());
+
+    const tx = await program.methods.delegateStake()
+      .accounts({
+        payer: owner.publicKey,
+        stakeAccount: stakeAccount.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+        stakeProgram: anchor.web3.StakeProgram.programId,
+        stakeHistory: anchor.web3.SYSVAR_STAKE_HISTORY_PUBKEY,
+        stakeConfig: anchor.web3.STAKE_CONFIG_ID,
+        stakeAuthority: stakeAuthority,
+        validatorVote: new anchor.web3.PublicKey(validatorVoteAccount),
+        clock: anchor.web3.SYSVAR_CLOCK_PUBKEY,
+      })
+      .signers([owner])
+      .rpc();
+
+      console.log("Delegate stake account transaction signature:", tx);
   });
 });

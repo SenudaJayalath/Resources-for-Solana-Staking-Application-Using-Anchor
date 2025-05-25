@@ -35,6 +35,30 @@ pub mod staking_application {
 
         Ok(())
     }
+
+    pub fn delegate_stake(ctx: Context<DelegateStake>) -> Result<()> {
+
+        let ix = stake::instruction::delegate_stake(
+            &ctx.accounts.stake_account.key(),
+            &ctx.accounts.stake_authority.key(),
+            &ctx.accounts.validator_vote.key(),
+        );
+        anchor_lang::solana_program::program::invoke_signed(
+            &ix,
+            &[
+                ctx.accounts.stake_program.to_account_info(),
+                ctx.accounts.stake_account.to_account_info(),
+                ctx.accounts.stake_authority.to_account_info(),
+                ctx.accounts.validator_vote.to_account_info(),
+                ctx.accounts.clock.to_account_info(),
+                ctx.accounts.stake_history.to_account_info(),
+                ctx.accounts.stake_config.to_account_info(),
+            ],
+            &[&[b"stake_authority", &[ctx.bumps.stake_authority]]],
+        )?;
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -58,4 +82,31 @@ pub struct InitializeStake<'info> {
     pub rent: Sysvar<'info, Rent>,
     pub system_program: Program<'info, System>,
     pub stake_program: Program<'info, Stake>,
+}
+
+#[derive(Accounts)]
+pub struct DelegateStake<'info> {
+    #[account(mut)]
+    pub payer: Signer<'info>,
+    /// CHECK: Unchecked Account
+    #[account(mut)]
+    pub stake_account: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    pub stake_program: Program<'info, Stake>,
+    /// CHECK: Unchecked Account
+    #[account(address = stake_history::ID)]
+    pub stake_history: UncheckedAccount<'info>,
+    /// CHECK: Unchecked Account
+    #[account(address = stake::config::ID)]
+    pub stake_config: UncheckedAccount<'info>,
+    /// CHECK: Unchecked Account
+    #[account(
+        seeds = [b"stake_authority"],
+        bump
+    )]
+    pub stake_authority: UncheckedAccount<'info>,
+    /// CHECK: Unchecked Account
+    #[account(mut)]
+    pub validator_vote: UncheckedAccount<'info>,
+    pub clock: Sysvar<'info, Clock>,
 }
